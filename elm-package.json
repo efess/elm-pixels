@@ -1,7 +1,7 @@
 {
     "version": "0.0.1",
-    "summary": "Taipan in Elm",
-    "repository": "https://github.com/efess/elm-pixels",
+    "summary": "Playground for pixel animations",
+    "repository": "https://github.com/efess/elm-pixels.git",
     "license": "MIT",
     "source-directories": [
         "src"
