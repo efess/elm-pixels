@@ -2,6 +2,7 @@ module Animations.Animation exposing (AniState, AniResult, runFrame, setup)
 import Animations.Rainbow
 import Animations.Blips
 import Pixel exposing (Pixel)
+import Time exposing (Time)
 
 type alias AniResult = {
   pixels: List Pixel,
@@ -20,17 +21,14 @@ createAniResult pixels state =
   }
 
 -- HOW DO YOU DO THIS BETTER
-runFrame: Int -> Int -> AniState -> AniResult
-runFrame frameNum pixelCount aniState =
+runFrame: Time -> Int -> Int -> AniState -> AniResult
+runFrame time frameNum pixelCount aniState =
   case aniState of
     Rainbow ->
-      let 
-        pixels = Animations.Rainbow.getFrame frameNum pixelCount
-      in
-        createAniResult pixels Rainbow
+        createAniResult (Animations.Rainbow.getFrame time frameNum pixelCount) Rainbow
     AniBlipsState state ->
       let 
-        tuple = Animations.Blips.getFrame frameNum pixelCount state
+        tuple = Animations.Blips.getFrame time frameNum pixelCount state
       in
         createAniResult (fst tuple) (AniBlipsState (snd tuple))  
       

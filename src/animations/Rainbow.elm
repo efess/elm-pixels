@@ -2,6 +2,7 @@ module Animations.Rainbow exposing (getFrame)
 
 import Pixel exposing (Pixel)
 import Rgb exposing (..)
+import Time exposing (Time)
 
 spectrumWidth = 255
 partWidth = 170
@@ -34,6 +35,6 @@ createPixel: Int -> Int -> Pixel
 createPixel id x =
   {color = getNextColor x, id = id}
 
-getFrame: Int -> Int -> List Pixel
-getFrame frameNum pixelCount =
+getFrame: Time -> Int -> Int -> List Pixel
+getFrame time frameNum pixelCount =
    List.indexedMap createPixel [frameNum..((+)frameNum pixelCount)]

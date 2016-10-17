@@ -29,34 +29,30 @@ main = App.program {
 
 type alias Model = {
   pixels : List Pixel,
-  animationState: AniState,
-  time: Time
+  animationState: AniState
 }
 
 init : (Model, Cmd Msg)
 init =
   ({ 
     pixels = [], 
-    time = 0, 
     animationState = setup initialAnimation
   },
   Cmd.none)
 
 -- UPDATE
 
-type Msg = 
-  Tick Time
+type Msg = Tick Time
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = 
   case msg of
     Tick newTime ->
       let
-        frameNum = (scaleTime (Time.inMilliseconds newTime))
-        aniResult = runFrame frameNum pixelCount model.animationState
+        frameNum = scaleTime (Time.inMilliseconds newTime)
+        aniResult = runFrame newTime frameNum pixelCount model.animationState
       in
         ({
-          time = newTime,
           pixels = aniResult.pixels,
           animationState = aniResult.state
         }, Cmd.none)
