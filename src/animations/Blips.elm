@@ -47,7 +47,10 @@ randomColorStep length list seed =
 setupState: Time -> Int -> BlipsState
 setupState time numberUnits =
   let
-    initalSeed = Random.initialSeed (round (Time.inMilliseconds time))
+    initalSeed = Time.inMilliseconds time
+      |> round
+      |> Random.initialSeed
+    
     rndColorRes = randomColorStep numberUnits [] initalSeed
   in
     {

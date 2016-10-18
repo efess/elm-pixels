@@ -1,4 +1,4 @@
-import Html exposing (Html,Attribute, div, h1, section, text, button, input)
+import Html exposing (Html,Attribute, div, h1, section, text, button, select, option)
 import Html.App as App
 import Html.Events exposing (onInput)
 import Html.Attributes exposing (..)
@@ -12,7 +12,7 @@ import Time exposing (Time, millisecond)
 pixelCount : number
 pixelCount = 255
 
-initialAnimation = "blips" 
+initialAnimation = "rainbow" 
 
 scaleTime: Float -> Int
 scaleTime timeMilli= 
@@ -42,7 +42,7 @@ init =
 
 -- UPDATE
 
-type Msg = Tick Time
+type Msg = Tick Time | AnimationChange String
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = 
@@ -56,6 +56,12 @@ update msg model =
           pixels = aniResult.pixels,
           animationState = aniResult.state
         }, Cmd.none)
+    AnimationChange newAnimation-> 
+      ({ 
+        pixels = [], 
+        animationState = setup newAnimation
+      },
+      Cmd.none) 
 
 -- SUBSCRIPTIONS
 
@@ -67,7 +73,14 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-  div [] (renderPixelsDisplay model)
+  div [] [
+    select [ placeholder "", onInput AnimationChange ] [
+      option [ value "rainbow" ] [text("Spectrum")],
+      option [ value "blips" ] [text("Random")]
+    ],
+    div [] (renderPixelsDisplay model)
+  ]
+  
 
 renderPixelsDisplay: Model -> List (Html Msg)
 renderPixelsDisplay model = 
