@@ -1,24 +1,27 @@
 import Html exposing (Html,Attribute, div, h1, section, text, button, select, option)
-import Html.App as App
 import Html.Events exposing (onInput)
 import Html.Attributes exposing (..)
 import List exposing (..)
+import Array exposing (..)
 import Pixel exposing (Pixel)
-import String
+import PixelMatrix exposing (..)
 import Rgb
 import Animations.Animation exposing (AniState, AniResult, runFrame, setup)
 import Time exposing (Time, millisecond)
+import Window
+import Task
+import Json.Encode exposing (string)
 
 pixelCount : number
 pixelCount = 255
 
-initialAnimation = "rainbow" 
+initialAnimation = "blips" 
 
 scaleTime: Float -> Int
 scaleTime timeMilli= 
   round (timeMilli / 10)
 
-main = App.program {
+main = Html.program {
     init = init, 
     view = view,
     update = update,
@@ -28,21 +31,28 @@ main = App.program {
 -- MODEL
 
 type alias Model = {
-  pixels : List Pixel,
+  windowSize: Window.Size,
+  pixelMatrix : PixelMatrix,
   animationState: AniState
 }
 
 init : (Model, Cmd Msg)
 init =
-  ({ 
-    pixels = [], 
-    animationState = setup initialAnimation
-  },
-  Cmd.none)
+  let
+    initialWindowSize = Window.Size 0 0
+  in
+    (
+      { 
+        windowSize = initialWindowSize,
+        pixelMatrix = PixelMatrix.empty 0 0,
+        animationState = (setup initialAnimation initialWindowSize)
+      },
+      Task.perform Resize Window.size
+    )
 
 -- UPDATE
 
-type Msg = Tick Time | AnimationChange String
+type Msg = Tick Time | AnimationChange String | Resize Window.Size
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model = 
@@ -50,24 +60,36 @@ update msg model =
     Tick newTime ->
       let
         frameNum = scaleTime (Time.inMilliseconds newTime)
-        aniResult = runFrame newTime frameNum pixelCount model.animationState
+        aniResult = runFrame newTime frameNum model.windowSize model.animationState
       in
-        ({
-          pixels = aniResult.pixels,
-          animationState = aniResult.state
-        }, Cmd.none)
-    AnimationChange newAnimation-> 
-      ({ 
-        pixels = [], 
-        animationState = setup newAnimation
-      },
-      Cmd.none) 
+        (
+          { 
+            model |
+              pixelMatrix = aniResult.pixelMatrix,
+              animationState = aniResult.state
+          }, 
+          Cmd.none
+        )
+    AnimationChange newAnimation -> 
+      ( 
+        { model | animationState = setup newAnimation model.windowSize },
+        Cmd.none
+      )
+    Resize newSize ->
+      (
+        { model | windowSize = newSize }, 
+        Cmd.none
+      )
 
 -- SUBSCRIPTIONS
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every millisecond Tick
+  Sub.batch
+    [
+      Time.every millisecond Tick,
+      Window.resizes Resize
+    ]
 
 -- VIEW
 
@@ -76,19 +98,25 @@ view model =
   div [] [
     select [ placeholder "", onInput AnimationChange ] [
       option [ value "rainbow" ] [text("Spectrum")],
-      option [ value "blips" ] [text("Random")]
+      option [ value "blips", selected True] [text("Random")],
+      option [ value "matrix"] [text("Matrix")]
     ],
-    div [] (renderPixelsDisplay model)
+    div [] (List.map (div [class ("pixel-row")]) (renderPixelsDisplay model))
   ]
   
 
-renderPixelsDisplay: Model -> List (Html Msg)
+renderPixelsDisplay: Model -> List (List (Html Msg))
 renderPixelsDisplay model = 
-  map renderPixel model.pixels
+  Array.map (Array.toList << Array.map renderPixel) model.pixelMatrix
+    |> Array.toList
 
 renderPixel : Pixel -> Html msg
 renderPixel pixel = 
   div [ 
     class ("pixel pixel" ++ toString pixel.id), 
-    style [ ("backgroundColor", "#" ++ Rgb.toHex pixel.color) ]
-  ] [text ("")]
+    style [ 
+      ("backgroundColor", "#" ++ Rgb.toHex pixel.backColor),
+      ("height", toString pixel.width ++ "px"),
+      ("width", toString pixel.width ++ "px") ],
+    property "innerHTML" (string "&nbsp;")
+  ] [] -- TODO: Implement GLYPH

@@ -1,4 +1,4 @@
-module Animations.Blips exposing (getFrame, setup, BlipsState)
+module Animations.Matrix exposing (getFrame, setup, MatrixState)
 import Random exposing (Seed, int, step)
 import Maybe
 import Time exposing (Time)
@@ -10,6 +10,18 @@ import Window
 import Matrix exposing (..)
 import Animations.PixelDimensions exposing (PixelDimensions, getDimensions)
 
+-- Matrix as in the movie "the Matrix" computer screen
+-- state: 
+--   individual pixel state
+--     stage =  0 - 255 level of "brightness" for pixel - 0 is "off", activated pixels start at 255
+--        and decrement when "fading" towards tail
+--     glyph to display when ON 
+--     offset will determine color based on periodic function
+--   trailState
+--     length
+--     startLocation 
+--     currentLocation
+--     flashType = |flashy | noFlash
 pixelSize = 60
 pixelStepGenerator = Random.int 15 10000
 pixelColorGenerator = Random.int 0 5
@@ -33,19 +45,12 @@ weirdPeriodic: Int -> Float
 weirdPeriodic x =
   weridPeriodicFn (toFloat x) 50
 
-sawtooth: Int -> Int
-sawtooth x = 
-  let
-    value = x % 256
-  in
-    if x % 512 > 255 then 255 - value else value
-
 type alias PixelParams = {
   color: Color,
   offset: Int
 }
 
-type alias BlipsState = {
+type alias MatrixState = {
   pixelParams: Matrix PixelParams,
   dimensions: PixelDimensions
 }
@@ -99,7 +104,7 @@ fillExpandedPixelParmas prevSize index total matrix seed =
     else
       fillExpandedPixelParmas prevSize (index + 1) total next.result next.seed
 
-updateState: Time -> BlipsState -> PixelDimensions -> BlipsState
+updateState: Time -> MatrixState -> PixelDimensions -> MatrixState
 updateState time currentState newDimensions =
   let
     initalSeed = Time.inMilliseconds time
@@ -125,7 +130,7 @@ getNormalPixelColor color frameNum offset =
       b = greenBlue.b--  + alterAmount
     }
 
-createPixel: BlipsState -> Int -> Location -> PixelParams -> Pixel
+createPixel: MatrixState -> Int -> Location -> PixelParams -> Pixel
 createPixel state frameNum location pixelParams =
   let 
     color = getNormalPixelColor pixelParams.color frameNum pixelParams.offset
@@ -140,7 +145,7 @@ createPixel state frameNum location pixelParams =
       width = pixelSize
     }
 
-getFrame: Time -> Int -> Window.Size -> BlipsState -> (PixelMatrix, BlipsState)
+getFrame: Time -> Int -> Window.Size -> MatrixState -> (PixelMatrix, MatrixState)
 getFrame time frameNum windowSize state =
   let 
     dimensions = getDimensions windowSize pixelSize
@@ -155,7 +160,7 @@ getFrame time frameNum windowSize state =
       newState
     )
 
-setup: Window.Size -> BlipsState
+setup: Window.Size -> MatrixState
 setup viewSize = 
   { 
     dimensions = { height = 0, total = 0, width = 0},
