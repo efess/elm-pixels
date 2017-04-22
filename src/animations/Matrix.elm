@@ -54,6 +54,7 @@ type alias Trail = {
   headRow: Int,
   speed: Int,  -- 1 to infinity -> the larger the number the slower
   flashType: FlashType
+
 }
 
 type alias MatrixState = {
@@ -224,6 +225,7 @@ updateMatrixPixelParams frameNum index stateAndSeed =
 
 updateState: MatrixState -> Time -> Int -> MatrixState
 updateState state time frameNum =
+
   let
     initalSeed = Time.inMilliseconds time
       |> round
@@ -338,6 +340,7 @@ pixelParamToPixel location pixelParam =
     backColor = {r = 0, g = 0, b = 0},
     foreColor = foreColor
   }
+
 
 getFrame: Time -> Int -> Window.Size -> MatrixState -> (PixelMatrix, MatrixState)
 getFrame time frameNum windowSize state =
