@@ -27,7 +27,7 @@ digitToHex x =
 pullNextHex: Int -> List String -> List String
 pullNextHex val acc =
   let 
-    leftover = shiftRight val 4
+    leftover = shiftRightBy 4 val
     cur = val % 16
   in
     if leftover > 0 then 
@@ -45,12 +45,12 @@ toHex color =
 
 toInt : Color -> Int
 toInt color = 
-  or (shiftLeft color.r 16)  (or (shiftLeft color.g 8) color.b)
+  or (shiftLeftBy 16 color.r)  (or (shiftLeftBy 8 color.g) color.b)
 
 toColor : Int -> Color
 toColor number = 
   {
-    r = and (shiftRight number 16) 0xff, 
-    g = and (shiftRight number 8) 0xff,
+    r = and (shiftRightBy 16 number) 0xff, 
+    g = and (shiftRightBy 8 number) 0xff,
     b = and number 0xff
   }
