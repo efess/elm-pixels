@@ -11,6 +11,7 @@ import Matrix exposing (..)
 import Char exposing (..)
 import Bitwise exposing (shiftRightBy)
 import Animations.PixelDimensions exposing (PixelDimensions, getDimensions)
+import MatrixFont exposing (intToChar, fontIntMin, fontIntMax)
 
 -- Matrix as in the movie "the Matrix" computer screen
 -- state: 
@@ -31,7 +32,7 @@ import Animations.PixelDimensions exposing (PixelDimensions, getDimensions)
 --    speed
 --    flashType = | flashy | noFlash
 
-trailSpawnChance = 10 -- 1 in this number frames
+trailSpawnChance = 3 -- 1 in this number frames
 pixelSize = 30
 
 pixelStepGenerator = Random.int 15 10000
@@ -54,7 +55,6 @@ type alias Trail = {
   headRow: Int,
   speed: Int,  -- 1 to infinity -> the larger the number the slower
   flashType: FlashType
-
 }
 
 type alias MatrixState = {
@@ -89,15 +89,21 @@ emptyMatrixState = {
 trailExists: Int -> List Trail -> Bool
 trailExists col = List.any (\t -> t.headCol == col)
 
+-- trailFindAtPixel: Int -> Int -> List Trail -> Trail
+-- trailFindAtPixel col row = List.find (\t -> t.headCol == col && t.headRow == row)
+
 addNewTrail: List Trail -> Seed -> Int -> (List Trail, Seed)
 addNewTrail trails seed col =
   let
     -- TODO: Randomize props
+    randomLength = Random.step (Random.int 50 60) seed
     newList =  {
-      emptyTrail | headCol = col, speed = 10  
+      emptyTrail |  headCol = col,
+                    speed = 10, 
+                    length = Tuple.first randomLength
     } :: trails
   in
-    (newList, seed)
+    (newList, Tuple.second randomLength)
 
 randomTrail: Int -> List Trail -> Seed -> (List Trail, Seed)
 randomTrail maxTrails trails seed =
@@ -137,15 +143,39 @@ isTrailStart: List Trail -> Location -> Bool
 isTrailStart trails pixelPos = 
   List.any (\t -> t.headCol == col pixelPos && t.headRow == row pixelPos) trails
 
-newPixelParamOnTrail: Seed -> (PixelParams, Seed)
-newPixelParamOnTrail seed = 
+applyTrail: (Matrix PixelParams, Seed) -> Trail -> (Matrix PixelParams, Seed)
+applyTrail pixelParamsAndSeed trail  =
   let
-    glyphChange = Random.step (Random.int 0 10) seed
-    termChange = Random.step (Random.int 0 25) (Tuple.second glyphChange)
+    pixelParam = newPixelParamOnTrail trail (Tuple.second pixelParamsAndSeed)
+    pixelParams = Tuple.first pixelParamsAndSeed
+    location = Matrix.loc trail.headRow trail.headCol
+  in
+    ( Matrix.set location (Tuple.first pixelParam) pixelParams, Tuple.second pixelParam)
+
+applyTrails: List Trail -> (Matrix PixelParams, Seed) -> (Matrix PixelParams, Seed)
+applyTrails trails pixelParamsAndSeed = 
+  let
+    head = List.head trails
+    tail = Maybe.withDefault [] (List.tail trails)
+  in
+    if head /= Nothing
+    then applyTrails tail (applyTrail pixelParamsAndSeed (Maybe.withDefault emptyTrail head))
+    else pixelParamsAndSeed
+
+
+  -- List.head trails
+  --  |> Maybe.andThen (applyTrail pixelParamsAndSeed)
+  --  |> applyTrails (Maybe.withDefault [] (List.tail trails))
+    
+newPixelParamOnTrail: Trail -> Seed -> (PixelParams, Seed)
+newPixelParamOnTrail trail seed = 
+  let
+    glyphChange = Random.step (Random.int 0 20) seed
+    termChange = Random.step (Random.int 10 200) (Tuple.second glyphChange)
     glyph = randomGlyph (Tuple.second termChange)
   in
     ({
-      stage = 120,
+      stage = trail.length,
       flashAmount = 255,
       greenAmount = 200,
       chanceOfGlyphChange = Tuple.first glyphChange,
@@ -156,46 +186,51 @@ newPixelParamOnTrail seed =
 randomGlyph: Seed -> (Char, Seed)
 randomGlyph seed =
   let
-    nextGlyph = Random.step (Random.int 48 90) seed
+    nextGlyph = Random.step (Random.int 26 MatrixFont.fontIntMax) seed
   in
-    (Char.fromCode (Tuple.first nextGlyph), Tuple.second nextGlyph)
+    (MatrixFont.intToChar (Tuple.first nextGlyph), Tuple.second nextGlyph)
 
 addRandomGlyph: PixelParams -> Seed -> (PixelParams, Seed)
 addRandomGlyph pixelParams seed =
   let
     charSeed = randomGlyph seed
+    randomGreen = Random.step (Random.int 60 255) (Tuple.second charSeed)
   in
-    ({pixelParams | glyph = Tuple.first charSeed}, Tuple.second charSeed)
+    ({pixelParams | glyph = Tuple.first charSeed, greenAmount = Tuple.first randomGreen}, Tuple.second randomGreen)
 
-updateGreenAmount: Int -> Int -> Int
-updateGreenAmount stage greenAmount =
-  if stage < 10 then round ((toFloat stage / toFloat 10) * toFloat greenAmount) else greenAmount
 
 updatePixelParam: Int -> Location -> PixelParams -> Seed -> (PixelParams, Seed)
-updatePixelParam frameNum location pixelParam seed =
+updatePixelParam frameNum location p seed =
   let
-    needsGlyphChange = Random.step (Random.int 0 pixelParam.chanceOfGlyphChange) seed
+    stopGlyphChange = if p.chanceOfTerminatingChange > 0
+                      then Random.step (Random.int 1 p.chanceOfTerminatingChange) seed
+                      else (0, seed)
+    
+    stopGlyphChangeVal = Tuple.first stopGlyphChange
+
+    needsGlyphChange = if p.chanceOfTerminatingChange > 0
+                       then Random.step (Random.int 0 p.chanceOfGlyphChange) (Tuple.second stopGlyphChange)
+                       else (0, Tuple.second stopGlyphChange)
+    
+    needsGlyphChangeVal = Tuple.first needsGlyphChange
+
     nextseed = Tuple.second needsGlyphChange
-    updatedPixelParam = { pixelParam | stage = pixelParam.stage - 1,
-                                      greenAmount = updateGreenAmount pixelParam.stage pixelParam.greenAmount,
-                                      flashAmount = if pixelParam.flashAmount > 30 then pixelParam.flashAmount - 30 else 0
+    updatedPixelParam = { p | stage = p.stage - 1,
+                              chanceOfTerminatingChange = if stopGlyphChangeVal /= p.chanceOfTerminatingChange 
+                                                          then  p.chanceOfTerminatingChange else 0,
+                              --greenAmount = updateGreenAmount p.stage p.greenAmount,
+                              flashAmount = if p.flashAmount > 30 then p.flashAmount - 30 else 0
                         }
   in
-    if (Tuple.first needsGlyphChange) == pixelParam.chanceOfGlyphChange
+    if (needsGlyphChangeVal) == p.chanceOfGlyphChange && needsGlyphChangeVal > 0
     then addRandomGlyph updatedPixelParam nextseed
     else (updatedPixelParam, nextseed)
 
 createAndUpdatePixelParam: Int -> List Trail -> Seed -> Location -> PixelParams -> (PixelParams, Seed)
 createAndUpdatePixelParam frameNum trails seed location pixelParam =
-  let
-    pixParam = if pixelParam.stage == 0 && isTrailStart trails location 
-                then newPixelParamOnTrail seed 
-                else (pixelParam, seed)
-    nextSeed = Tuple.second pixParam
-    nextParam = Tuple.first pixParam
-  in
-    if nextParam.stage > 0 then updatePixelParam frameNum location nextParam nextSeed
-    else (emptyParams, nextSeed)
+    if pixelParam.stage > 0 && not (isTrailStart trails location) 
+    then updatePixelParam frameNum location pixelParam seed
+    else (pixelParam, seed)
 
 updateMatrixPixelParam: Int -> Location -> (MatrixState, Seed) -> (MatrixState, Seed)
 updateMatrixPixelParam frameNum location stateAndSeed =
@@ -234,8 +269,10 @@ updateState state time frameNum =
     trailsUpdate = randomTrails state.dimensions.width state.trails initalSeed
     trailsStepped = stepTrails (Tuple.first trailsUpdate) frameNum
     trailsPurged = purgeTrails state.dimensions.height trailsStepped 
+    trailsApplied = applyTrails state.trails (state.pixelParams,  Tuple.second trailsUpdate)
 
-    pixelsUpdate = updateMatrixPixelParams frameNum 0 ({ state | trails = trailsPurged}, Tuple.second trailsUpdate)
+    pixelsUpdate = ({ state | trails = trailsPurged, pixelParams = Tuple.first trailsApplied}, Tuple.second trailsApplied)
+      |> updateMatrixPixelParams frameNum 0 
   in
     Tuple.first pixelsUpdate
 
@@ -326,20 +363,38 @@ expandParamsMatrix width height matrix =
 pixelParamToPixel: Location -> PixelParams -> Pixel
 pixelParamToPixel location pixelParam = 
   let
-    green =  {r = 0, g = pixelParam.greenAmount, b = 0} 
-    foreColor = if pixelParam.flashAmount > 0
-                then blendA {r = 255, g = 255, b = 255 } green  pixelParam.flashAmount
-                else green
+    green = {r = 0, g = pixelParam.greenAmount, b = 0} 
+
+    greenWithFade = if pixelParam.stage < 20 
+                    then blendA green {r = 0, g = 0, b = 0 } (round ((toFloat pixelParam.stage / toFloat 20) * 255.0))
+                    else green
+
+    greenWithFadeAndFlash = if pixelParam.flashAmount > 0
+                then blendA {r = 255, g = 255, b = 255 } greenWithFade pixelParam.flashAmount
+                else greenWithFade
   in
-  {
-    id = col location * row location,
-    x = col location ,
-    y = row location,
-    width = pixelSize,
-    glyph = pixelParam.glyph,
-    backColor = {r = 0, g = 0, b = 0},
-    foreColor = foreColor
-  }
+  if pixelParam.stage == 0 
+  then 
+    {
+      id = col location * row location,
+      x = col location ,
+      y = row location,
+      width = pixelSize,
+      glyph = ' ',
+      backColor = {r = 0, g = 0, b = 0},
+      foreColor = greenWithFadeAndFlash
+    }
+
+  else
+    {
+      id = col location * row location,
+      x = col location ,
+      y = row location,
+      width = pixelSize,
+      glyph = pixelParam.glyph,
+      backColor = {r = 0, g = 0, b = 0},
+      foreColor = greenWithFadeAndFlash
+    }
 
 
 getFrame: Time -> Int -> Window.Size -> MatrixState -> (PixelMatrix, MatrixState)
@@ -351,7 +406,7 @@ getFrame time frameNum windowSize state =
                                 dimensions = dimensions}
                   else state
 
-    updatedState = updateState sizedState time frameNum
+    updatedState =  updateState sizedState time frameNum
   in
     (
       Matrix.mapWithLocation pixelParamToPixel updatedState.pixelParams, 

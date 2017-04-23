@@ -15,9 +15,9 @@ import String
 
 initialAnimation = "matrix" 
 
-scaleTime: Float -> Int
-scaleTime timeMilli= 
-  round (timeMilli / 10)
+-- scaleTime: Float -> Int
+-- scaleTime timeMilli= 
+--   round (timeMilli / 10)
 
 main = Html.program {
     init = init, 
@@ -31,7 +31,8 @@ main = Html.program {
 type alias Model = {
   windowSize: Window.Size,
   pixelMatrix : PixelMatrix,
-  animationState: AniState
+  animationState: AniState,
+  lastFrameNum: Int
 }
 
 init : (Model, Cmd Msg)
@@ -43,7 +44,8 @@ init =
       { 
         windowSize = initialWindowSize,
         pixelMatrix = PixelMatrix.empty 0 0,
-        animationState = (setup initialAnimation initialWindowSize)
+        animationState = (setup initialAnimation initialWindowSize),
+        lastFrameNum = 0
       },
       Task.perform Resize Window.size
     )
@@ -57,14 +59,17 @@ update msg model =
   case msg of
     Tick newTime ->
       let
-        frameNum = scaleTime (Time.inMilliseconds newTime)
-        aniResult = runFrame newTime frameNum model.windowSize model.animationState
+        frameNum = round (Time.inMilliseconds newTime)
+        aniResult = if frameNum /= model.lastFrameNum -- Why is tick firing twice for the same millisecond?
+                    then runFrame newTime frameNum model.windowSize model.animationState
+                    else {pixelMatrix = model.pixelMatrix, state =model.animationState}
       in
         (
           { 
             model |
               pixelMatrix = aniResult.pixelMatrix,
-              animationState = aniResult.state
+              animationState = aniResult.state,
+              lastFrameNum = frameNum
           }, 
           Cmd.none
         )
@@ -85,7 +90,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
     [
-      Time.every millisecond Tick,
+      Time.every (100 * millisecond) Tick,
       Window.resizes Resize
     ]
 
