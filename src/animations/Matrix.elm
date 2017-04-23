@@ -33,7 +33,7 @@ import MatrixFont exposing (intToChar, fontIntMin, fontIntMax)
 --    flashType = | flashy | noFlash
 
 trailSpawnChance = 3 -- 1 in this number frames
-pixelSize = 30
+pixelSize = 20
 
 pixelStepGenerator = Random.int 15 10000
 pixelColorGenerator = Random.int 0 5
@@ -120,10 +120,10 @@ randomTrails: Int -> List Trail -> Seed -> (List Trail, Seed)
 randomTrails maxTrails trails seed = 
   let
     spawnChance = if List.length trails < maxTrails 
-                  then Random.step (Random.int 0 trailSpawnChance) seed 
+                  then Random.step (Random.int 0 30) seed 
                   else (0, seed)
   in
-    if Tuple.first spawnChance == trailSpawnChance
+    if Tuple.first spawnChance > 5
     then randomTrail maxTrails trails (Tuple.second spawnChance)
     else (trails, seed)
 

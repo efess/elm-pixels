@@ -8118,7 +8118,7 @@ var _efess$elm_pixels$Animations_Matrix$expandParamsMatrix = F3(
 	});
 var _efess$elm_pixels$Animations_Matrix$pixelColorGenerator = A2(_elm_lang$core$Random$int, 0, 5);
 var _efess$elm_pixels$Animations_Matrix$pixelStepGenerator = A2(_elm_lang$core$Random$int, 15, 10000);
-var _efess$elm_pixels$Animations_Matrix$pixelSize = 30;
+var _efess$elm_pixels$Animations_Matrix$pixelSize = 20;
 var _efess$elm_pixels$Animations_Matrix$pixelParamToPixel = F2(
 	function (location, pixelParam) {
 		var green = {r: 0, g: pixelParam.greenAmount, b: 0};
@@ -8218,11 +8218,11 @@ var _efess$elm_pixels$Animations_Matrix$randomTrails = F3(
 			_elm_lang$core$List$length(trails),
 			maxTrails) < 0) ? A2(
 			_elm_lang$core$Random$step,
-			A2(_elm_lang$core$Random$int, 0, _efess$elm_pixels$Animations_Matrix$trailSpawnChance),
+			A2(_elm_lang$core$Random$int, 0, 30),
 			seed) : {ctor: '_Tuple2', _0: 0, _1: seed};
-		return _elm_lang$core$Native_Utils.eq(
+		return (_elm_lang$core$Native_Utils.cmp(
 			_elm_lang$core$Tuple$first(spawnChance),
-			_efess$elm_pixels$Animations_Matrix$trailSpawnChance) ? A3(
+			5) > 0) ? A3(
 			_efess$elm_pixels$Animations_Matrix$randomTrail,
 			maxTrails,
 			trails,
