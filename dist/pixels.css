@@ -1,0 +1,23 @@
+body {
+  background: dimgray;
+  overflow: hidden;
+  
+}
+
+@font-face {
+  font-family: 'matrix';
+  src: url('fonts/matrix_code.ttf')  format('truetype')
+}
+.pixel-row { 
+  white-space: nowrap;
+}
+.pixel {
+  vertical-align: top;
+  display: inline-block;
+  padding: 0px;
+  margin: 0px;
+  
+  text-align: center;
+  font-size: 20px;
+
+}
